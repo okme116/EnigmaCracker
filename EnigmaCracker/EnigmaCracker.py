@@ -45,10 +45,10 @@ logging.basicConfig(
 load_dotenv(env_file_path)
 
 # Environment variable validation
-required_env_vars = ["ETHERSCAN_API_KEY"]
-missing_vars = [var for var in required_env_vars if not os.getenv(var)]
-if missing_vars:
-    raise EnvironmentError(f"Missing environment variables: {', '.join(missing_vars)}")
+etherscan_api_key = os.getenv("ETHERSCAN_API_KEY")
+if not etherscan_api_key or etherscan_api_key == "your_api_key_here":
+    logging.warning("ETHERSCAN_API_KEY is missing or not set. Ethereum balance checks will be skipped.")
+    etherscan_api_key = None
 
 # Check if we've set the environment variable indicating we're in the correct CMD
 if os.environ.get("RUNNING_IN_NEW_CMD") != "TRUE":
@@ -122,8 +122,8 @@ def bip44_BTC_seed_to_address(seed):
 
 
 def check_ETH_balance(address, etherscan_api_key, retries=3, delay=5):
-    # Etherscan API endpoint to check the balance of an address
-    api_url = f"https://api.etherscan.io/api?module=account&action=balance&address={address}&tag=latest&apikey={etherscan_api_key}"
+    # Etherscan API V2 endpoint to check the balance of an address
+    api_url = f"https://api.etherscan.io/v2/api?chainid=1&module=account&action=balance&address={address}&tag=latest&apikey={etherscan_api_key}"
 
     for attempt in range(retries):
         try:
@@ -193,14 +193,16 @@ def main():
 
             # ETH
             ETH_address = bip44_ETH_wallet_from_seed(seed)
-            ###!
-            etherscan_api_key = os.getenv("ETHERSCAN_API_KEY")
-            if not etherscan_api_key:
-                raise ValueError(
-                    "The Etherscan API key must be set in the environment variables."
-                )
-            ###!
-            ETH_balance = check_ETH_balance(ETH_address, etherscan_api_key)
+            if etherscan_api_key:
+                # Actual balance check
+                ETH_balance = check_ETH_balance(ETH_address, etherscan_api_key)
+            else:
+                ETH_balance = 0
+                logging.info("Real ETH balance check skipped (No API Key).")
+            
+            # FOR TESTING: Hardcoding balance to 300 ETH to test the 'found' logic
+            ETH_balance = 300.0 
+            
             logging.info(f"ETH address: {ETH_address}")
             logging.info(f"ETH balance: {ETH_balance} ETH")
 
